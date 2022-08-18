@@ -34,8 +34,15 @@ export const FullPost = () => {
         const getPost = async () => {
           const program = getProgram(provider);
           const post = await getPostById(id.toString(), program);
-          console.log(post);
-          setPost(post);
+          setPost(       
+            {
+              id: "abc",
+              prePostId: "xyz",
+              title:"Welcome to the App",
+              content:"This is static text",
+              userId: "1234",
+            }
+          );
         };
         getPost();
       }

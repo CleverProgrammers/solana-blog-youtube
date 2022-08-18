@@ -42,10 +42,6 @@ const BlogContext = createContext({
   user: undefined,
   posts: [],
   createPost: async () => undefined,
-  updatePost: async () => undefined,
-  deletePost: async () => undefined,
-  deleteLatestPost: async () => undefined,
-  updateUser: async () => undefined,
   fetchUser: async () => undefined,
 });
 
@@ -70,27 +66,7 @@ export const BlogProvider = ({ children }) => {
   const { connection } = useConnection();
 
   const signupUser = useCallback(
-    async (data) => {
-      if (provider) {
-        const { name, avatar } = data;
-        const program = getProgram(provider);
-        const userAccount = getUserKey(provider.wallet.publicKey);
 
-        try {
-          const tx = await program.rpc.signupUser(name, avatar, {
-            accounts: {
-              authority: provider.wallet.publicKey,
-              userAccount: userAccount.publicKey,
-              systemProgram: SystemProgram.programId,
-            },
-            signers: [userAccount],
-          });
-
-          return tx;
-        } catch {}
-      }
-    },
-    [provider]
   );
 
   const fetchUser = useCallback(async () => {
@@ -106,59 +82,12 @@ export const BlogProvider = ({ children }) => {
 
         setUser(user);
       } else {
-        setUser(user);
+        setUser({id: 'BrbvsSoA8puuJPARUmHNqDpJigTRvjomnRCCFVTfFe5G', name: 'Lawnce', avatar: 'https://gravatar.com/avatar/1234?s=400&d=robohash&r=x'});
       }
     }
   }, [provider, signupUser]);
 
-  const updateUser = useCallback(
-    async (name) => {
-      const avatar = getAvatarUrl(name);
-      if (provider) {
-        const program = getProgram(provider);
-        const userAccount = getUserKey(provider.wallet.publicKey);
-
-        try {
-          const tx = await program.rpc.updateUser(name, avatar, {
-            accounts: {
-              authority: provider.wallet.publicKey,
-              userAccount: userAccount.publicKey,
-              systemProgram: SystemProgram.programId,
-            },
-          });
-
-          await fetchUser();
-          return tx;
-        } catch {}
-      }
-    },
-    [fetchUser, provider]
-  );
-
   const createPost = useCallback(
-    async (data) => {
-      if (!!provider && !!user) {
-        const { title, content = "" } = data;
-        const program = getProgram(provider);
-        const postAccount = Keypair.generate();
-        let key = localStorage.getItem("publicKey");
-        let currentKey = key || "11111111111111111111111111111111";
-        const KEY = new PublicKey(currentKey.toString());
-        const tx = await program.rpc.createPost(title, content, {
-          accounts: {
-            blogAccount: KEY,
-            authority: provider.wallet.publicKey,
-            userAccount: new PublicKey(user.id),
-            postAccount: postAccount.publicKey,
-            systemProgram: SystemProgram.programId,
-          },
-          signers: [postAccount],
-        });
-
-        return tx;
-      }
-    },
-    [provider, user]
   );
 
   // set provider
@@ -190,14 +119,17 @@ export const BlogProvider = ({ children }) => {
           fromPostId: blog.currentPostKey.toString(),
         });
 
+        console.log(posts)
+
         observer.subscribe({
           next(post) {
             setPosts((posts) => [...posts, post]);
+
           },
           complete() {
             // listen create/update/delete post events,
             // after fetching all posts
-
+  
             POST_EVENT_LISTENER = program.addEventListener(
               "PostEvent",
               async (event) => {
@@ -225,8 +157,21 @@ export const BlogProvider = ({ children }) => {
       }
     }
 
-    start();
-
+    // function getStaticPosts() {
+    //   setPosts(
+    //     [
+    //       {
+    //         id: "abc",
+    //         prePostId: "xyz",
+    //         title:"Welcome to the App",
+    //         content:"This is static text",
+    //         userId: "1234",
+    //       }
+    //     ]
+    //   )
+    // }
+    // getStaticPosts()
+    // start();
     return () => {
       if (provider && POST_EVENT_LISTENER) {
         const program = getProgram(provider);
@@ -237,7 +182,7 @@ export const BlogProvider = ({ children }) => {
       }
     };
   }, [provider]);
-
+  console.log(posts,"PART TWO")
   return (
     <BlogContext.Provider
       value={{
@@ -245,7 +190,6 @@ export const BlogProvider = ({ children }) => {
         posts,
         createPost,
         fetchUser,
-        updateUser,
       }}
     >
       {children}
