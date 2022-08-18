@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*  */
+
+.background-color {
+  background: #1b012b;
+  padding: 10px;
+}
+
+.glass {
+  backdrop-filter: blur(16px) saturate(180%);
+  background-color: rgba(255, 255, 255, 0.75);
+}
+
+body {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.dashboard-main {
+  min-height: calc(100vh - 56px);
+  padding-top: 56px;
+}
+
+.dashboard-aside {
+  position: fixed;
+  min-width: 400px;
+  min-height: calc(100vh - 5rem);
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 1rem;
+}
