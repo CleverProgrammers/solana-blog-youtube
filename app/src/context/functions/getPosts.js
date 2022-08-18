@@ -14,11 +14,12 @@ export function getPosts(args) {
       const { program, fromPostId } = args;
       let nextPostId= fromPostId;
 
-      while (nextPostId) {
+      while (!!nextPostId) {
         const post = await getPostById(nextPostId, program);
         if (!post) {
           break;
         }
+
         subscriber.next(post);
         nextPostId = post.prePostId;
       }

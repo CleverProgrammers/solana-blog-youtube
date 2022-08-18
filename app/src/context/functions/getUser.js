@@ -15,7 +15,7 @@ export async function getUser(program, walletKey) {
       name: _user.name,
       avatar: _user.avatar,
     };
- 
+
     return user;
   } catch {}
 }
