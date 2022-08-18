@@ -97,7 +97,7 @@ export const BlogProvider = ({ children }) => {
     if (provider) {
       const program = getProgram(provider);
       const user = await getUser(program, provider.wallet.publicKey);
-
+console.log(user)
       if (!user) {
         const name = getRandomName();
         const avatar = getAvatarUrl(name);
