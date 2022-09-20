@@ -1,43 +1,25 @@
 import { useWallet } from "@solana/wallet-adapter-react"
-import { useCallback, useEffect, useState } from "react"
+import { PhantomWalletName } from "@solana/wallet-adapter-wallets"
+import { useEffect, useState } from "react"
 import { Button } from "src/components/Button"
-import { InterestingSkeleton } from "src/components/InterestingSkeleton"
-import { PostCard } from "src/components/PostCard"
 import { PostForm } from "src/components/PostForm"
-import { SponsoredSkeleton } from "src/components/SponsoredSkeleton"
 import { useBlog } from "src/context/Blog"
-import { displayKey } from "src/functions/displayKey"
 import { useHistory } from 'react-router-dom'
+
+
+
 export const Dashboard = () => {
   const history = useHistory()
   const [connecting, setConnecting] = useState(false)
-  const [showModal, setShowModal] = useState(false)
-  const { connected, select, publicKey } = useWallet()
-  const { user, posts, fetchUser, createPost } = useBlog()
-
+  const { connected, select } = useWallet()
+  const { user, posts, initialized, initUser, createPost, showModal, setShowModal, } = useBlog()
   const [postTitle, setPostTitle] = useState("")
   const [postContent, setPostContent] = useState("")
 
-  const onCreatePost = useCallback(
-    async (title, content) => {
-      try {
-        await createPost({ title, content })
-        setPostTitle("")
-        setPostContent("")
-        setShowModal(false)
-      } catch {
-        setShowModal(false)
-        // show toast message
-      }
-    },
-    [createPost]
-  )
-
-  useEffect(() => {
-    if (publicKey) {
-      fetchUser()
-    }
-  }, [fetchUser, publicKey])
+  const onConnect = () => {
+    setConnecting(true)
+    select(PhantomWalletName)
+  }
 
   useEffect(() => {
     if (user) {
@@ -71,40 +53,51 @@ export const Dashboard = () => {
               <p className=" font-bold text-sm ml-2 capitalize">
                 {user?.name}
               </p>
-              {/* <Button
-                className="ml-3 mr-2"
-                onClick={() => {
-                  setShowModal(true)
-                }}
-              >
-                Create Post
-              </Button> */}
+              {initialized ? (
+                <Button
+                  className="ml-3 mr-2"
+                  onClick={() => {
+                    setShowModal(true)
+                  }}
+                >
+                  Create Post
+                </Button>
+              ) : (
+                <Button
+                  className="ml-3 mr-2"
+                  onClick={() => {
+                    initUser()
+                  }}
+                >
+                  Initialize User
+                </Button>
+              )}
+
             </div>
           ) : (
-            // <Button
-            //   loading={connecting}
-            //   className="w-28"
-            //   onClick={onConnect}
-            //   leftIcon={
-            //     <svg
-            //       xmlns="http://www.w3.org/2000/svg"
-            //       className="h-5 w-5 mr-1"
-            //       fill="none"
-            //       viewBox="0 0 24 24"
-            //       stroke="currentColor"
-            //     >
-            //       <path
-            //         strokeLinecap="round"
-            //         strokeLinejoin="round"
-            //         strokeWidth={2}
-            //         d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-            //       />
-            //     </svg>
-            //   }
-            // >
-            //   Connect
-            // </Button>
-            <h1>BUTTON GOES HERE</h1>
+            <Button
+              loading={connecting}
+              className="w-28"
+              onClick={onConnect}
+              leftIcon={
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                  />
+                </svg>
+              }
+            >
+              Connect
+            </Button>
           )}
         </div>
       </header>
@@ -126,22 +119,19 @@ export const Dashboard = () => {
                   Lorem ipsum dolor sit amet, consectetur
                 </div>
                 <div className="best-post-content-sub">
-                  Lorem Ipsum, masaüstü yayıncılık ve basın yayın sektöründe
-                  kullanılan taklit yazı bloğu olarak tanımlanır. Lipsum,
-                  oluşturulacak şablon ve taslaklarda içerik yerine geçerek yazı
-                  bloğunu doldurmak için kullanılır.
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
                 </div>
               </div>
             </article>
 
             <div className="all__posts">
               {posts.map((item) => {
-                console.log(item)
                 return (
                   <article className="post__card-2"
                     onClick={() => {
-                      history.push(`/read-post/${item.id}`)
+                      history.push(`/read-post/${item.publicKey.toString()}`)
                     }}
+                    key={item.account.id}
                   >
                     <div className="post__card_-2">
                       <div
@@ -152,9 +142,9 @@ export const Dashboard = () => {
                       ></div>
                       <div>
                         <div className="post__card_meta-2">
-                          <div className="post__card_cat">December 2, 2021<span className="dot"> </span>{item.title} </div>
+                          <div className="post__card_cat">December 2, 2021<span className="dot"> </span>{item.account.title} </div>
                           <p className="post__card_alttitle-2">
-                            {item.content}
+                            {item.account.content}
                           </p>
                         </div>
                       </div>
@@ -175,7 +165,7 @@ export const Dashboard = () => {
               postContent={postContent}
               setPostTitle={setPostTitle}
               setPostContent={setPostContent}
-              onSubmit={() => onCreatePost(postTitle, postContent)}
+              onSubmit={() => createPost(postTitle, postContent)}
             />
           </div>
         </div>

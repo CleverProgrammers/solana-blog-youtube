@@ -2,58 +2,46 @@ import { AnchorProvider, Program } from "@project-serum/anchor";
 import {
   useAnchorWallet,
   useConnection,
-  useWallet,
 } from "@solana/wallet-adapter-react";
-import { PhantomWalletName } from "@solana/wallet-adapter-wallets";
 import { PublicKey } from "@solana/web3.js";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Button } from "src/components/Button";
-import { InterestingSkeleton } from "src/components/InterestingSkeleton";
-import { PostCard } from "src/components/PostCard";
-import { PostForm } from "src/components/PostForm";
-import { SponsoredSkeleton } from "src/components/SponsoredSkeleton";
-import { useBlog } from "src/context/Blog";
 import { getPostById } from "src/context/functions/getPostById";
-import { displayKey } from "src/functions/displayKey";
 import idl from "src/idl.json";
 
 const PROGRAM_KEY = new PublicKey(idl.metadata.address);
+
 function getProgram(provider) {
   return new Program(idl, PROGRAM_KEY, provider);
 }
+
 export const FullPost = () => {
   const { id } = useParams();
   const wallet = useAnchorWallet();
   const { connection } = useConnection();
   const [provider, setProvider] = useState();
   const [post, setPost] = useState();
+
   useEffect(() => {
     try {
       if (provider) {
         const getPost = async () => {
           const program = getProgram(provider);
           const post = await getPostById(id.toString(), program);
-          setPost(       
-            {
-              id: "abc",
-              prePostId: "xyz",
-              title:"Welcome to the App",
-              content:"This is static text",
-              userId: "1234",
-            }
-          );
+          setPost(post);
         };
         getPost();
       }
-    } catch {}
+    } catch { }
   }, [provider]);
+
   useEffect(() => {
     if (wallet) {
       const provider = new AnchorProvider(connection, wallet, {});
       setProvider(provider);
     }
   }, [connection, wallet]);
+
 
   return (
     <article className="hentry background-color">
