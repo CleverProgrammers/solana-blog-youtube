@@ -1,53 +1,22 @@
-import { Program, AnchorProvider } from "@project-serum/anchor";
-import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
-import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import * as anchor from '@project-serum/anchor'
+import { useAnchorWallet, useConnection, useWallet } from '@solana/wallet-adapter-react'
+import { PublicKey, SystemProgram } from "@solana/web3.js";
 import {
   createContext,
-  FC,
-  useCallback,
   useContext,
   useEffect,
   useState,
+  useMemo,
 } from "react";
-import { getPostById } from "src/context/functions/getPostById";
-import { getPosts } from "src/context/functions/getPosts";
-import { getUser } from "src/context/functions/getUser";
-import { initBlog } from "src/context/functions/initBlog";
 import { getAvatarUrl } from "src/functions/getAvatarUrl";
 import { getRandomName } from "src/functions/getRandomName";
 import idl from "src/idl.json";
+import { findProgramAddressSync } from '@project-serum/anchor/dist/cjs/utils/pubkey'
+import { utf8 } from '@project-serum/anchor/dist/cjs/utils/bytes'
 
 const PROGRAM_KEY = new PublicKey(idl.metadata.address);
-let key = localStorage.getItem("publicKey");
-let currentKey = key || "11111111111111111111111111111111";
-const BLOG_KEY = new PublicKey(currentKey.toString());
-// create unique user key
-export const getUserKey = (walletKey) => {
-  const userAccount = Keypair.fromSeed(
-    new TextEncoder().encode(
-      `${PROGRAM_KEY.toString().slice(0, 15)}__${walletKey
-        .toString()
-        .slice(0, 15)}`
-    )
-  );
 
-  return userAccount;
-};
-
-function getProgram(provider) {
-  return new Program(idl, PROGRAM_KEY, provider);
-}
-
-const BlogContext = createContext({
-  user: undefined,
-  posts: [],
-  createPost: async () => undefined,
-  updatePost: async () => undefined,
-  deletePost: async () => undefined,
-  deleteLatestPost: async () => undefined,
-  updateUser: async () => undefined,
-  fetchUser: async () => undefined,
-});
+const BlogContext = createContext();
 
 export const useBlog = () => {
   const context = useContext(BlogContext);
@@ -60,192 +29,110 @@ export const useBlog = () => {
 
 export const BlogProvider = ({ children }) => {
   const [user, setUser] = useState();
-  const [blogkey, setBlogKey] = useState(
-    new PublicKey("11111111111111111111111111111111")
-  );
-  const [posts, setPosts] = useState([]);
-  const [provider, setProvider] = useState();
+  const [initialized, setInitialized] = useState(false);
+  const [posts, setPosts] = useState([])
+  const [transactionPending, setTransactionPending] = useState(false)
+  const [showModal, setShowModal] = useState(false)
+  const [lastPostId, setLastPostId] = useState()
 
-  const wallet = useAnchorWallet();
+  const anchorWallet = useAnchorWallet();
   const { connection } = useConnection();
+  const { publicKey } = useWallet()
 
-  const signupUser = useCallback(
-    async (data) => {
-      if (provider) {
-        const { name, avatar } = data;
-        const program = getProgram(provider);
-        const userAccount = getUserKey(provider.wallet.publicKey);
+  const program = useMemo(() => {
+    if (anchorWallet) {
+      const provider = new anchor.AnchorProvider(connection, anchorWallet, anchor.AnchorProvider.defaultOptions())
+      return new anchor.Program(idl, PROGRAM_KEY, provider)
+    }
+  }, [connection, anchorWallet])
 
+  useEffect(() => {
+
+    const start = async () => {
+      if (program && publicKey) {
         try {
-          const tx = await program.rpc.signupUser(name, avatar, {
-            accounts: {
-              authority: provider.wallet.publicKey,
-              userAccount: userAccount.publicKey,
-              systemProgram: SystemProgram.programId,
-            },
-            signers: [userAccount],
-          });
-
-          return tx;
-        } catch { }
+          const [userPda] = await findProgramAddressSync([utf8.encode('user'), publicKey.toBuffer()], program.programId)
+          const user = await program.account.userAccount.fetch(userPda)
+          if (user) {
+            setInitialized(true)
+            setUser(user)
+            setLastPostId(user.lastPostId)
+            const postAccounts = await program.account.postAccount.all(publicKey.toString())
+            setPosts(postAccounts)
+          }
+        } catch (error) {
+          console.log(error)
+          setInitialized(false)
+        }
       }
-    },
-    [provider]
-  );
+    }
 
-  const fetchUser = useCallback(async () => {
-    if (provider) {
-      const program = getProgram(provider);
-      const user = await getUser(program, provider.wallet.publicKey);
-      console.log(user)
-      if (!user) {
+    start()
+
+  }, [program, publicKey, transactionPending]);
+
+
+  const initUser = async () => {
+    if (program && publicKey) {
+      try {
+        setTransactionPending(true)
+        const [userPda] = findProgramAddressSync([utf8.encode('user'), publicKey.toBuffer()], program.programId)
         const name = getRandomName();
         const avatar = getAvatarUrl(name);
-        await signupUser({ name, avatar });
-        const user = await getUser(program, provider.wallet.publicKey);
 
-        setUser(user);
-      } else {
-        setUser(user);
-      }
-    }
-  }, [provider, signupUser]);
-
-  const updateUser = useCallback(
-    async (name) => {
-      const avatar = getAvatarUrl(name);
-      if (provider) {
-        const program = getProgram(provider);
-        const userAccount = getUserKey(provider.wallet.publicKey);
-
-        try {
-          const tx = await program.rpc.updateUser(name, avatar, {
-            accounts: {
-              authority: provider.wallet.publicKey,
-              userAccount: userAccount.publicKey,
-              systemProgram: SystemProgram.programId,
-            },
-          });
-
-          await fetchUser();
-          return tx;
-        } catch { }
-      }
-    },
-    [fetchUser, provider]
-  );
-
-  const createPost = useCallback(
-    async (data) => {
-      if (!!provider && !!user) {
-        const { title, content = "" } = data;
-        const program = getProgram(provider);
-        const postAccount = Keypair.generate();
-        let key = localStorage.getItem("publicKey");
-        let currentKey = key || "11111111111111111111111111111111";
-        const KEY = new PublicKey(currentKey.toString());
-        const tx = await program.rpc.createPost(title, content, {
-          accounts: {
-            blogAccount: KEY,
-            authority: provider.wallet.publicKey,
-            userAccount: new PublicKey(user.id),
-            postAccount: postAccount.publicKey,
+        await program.methods
+          .initUser(name, avatar)
+          .accounts({
+            userAccount: userPda,
+            authority: publicKey,
             systemProgram: SystemProgram.programId,
-          },
-          signers: [postAccount],
-        });
-
-        return tx;
-      }
-    },
-    [provider, user]
-  );
-
-  // set provider
-  useEffect(() => {
-    if (wallet) {
-      const provider = new AnchorProvider(connection, wallet, {});
-      setProvider(provider);
-    }
-  }, [connection, wallet]);
-
-  // set initial posts
-  useEffect(() => {
-    let POST_EVENT_LISTENER;
-
-    async function start() {
-      if (provider) {
-        const program = getProgram(provider);
-        console.log(blogkey);
-        const blog = await initBlog(
-          program,
-          BLOG_KEY,
-          provider.wallet.publicKey,
-          setBlogKey
-        );
-        console.log(blog);
-        // initially load all the posts
-        const [observer] = getPosts({
-          program,
-          fromPostId: blog.currentPostKey.toString(),
-        });
-
-        observer.subscribe({
-          next(post) {
-            setPosts((posts) => [...posts, post]);
-          },
-          complete() {
-            // listen create/update/delete post events,
-            // after fetching all posts
-
-            POST_EVENT_LISTENER = program.addEventListener(
-              "PostEvent",
-              async (event) => {
-                const postId = event?.postId?.toString();
-                const nextPostId = event?.nextPostId?.toString();
-
-                if (postId) {
-                  switch (event.label) {
-                    case "CREATE":
-                      const post = await getPostById(postId, program);
-
-                      if (post) {
-                        setPosts((posts) => [post, ...posts]);
-                      }
-                      break;
-
-                    default:
-                      break;
-                  }
-                }
-              }
-            );
-          },
-        });
+          })
+          .rpc()
+        setInitialized(true)
+      } catch (error) {
+        console.log(error)
+      } finally {
+        setTransactionPending(false)
       }
     }
+  }
 
-    start();
+  const createPost = async (title, content) => {
+    if (program && publicKey) {
+      setTransactionPending(true)
+      try {
+        const [userPda] = findProgramAddressSync([utf8.encode('user'), publicKey.toBuffer()], program.programId)
+        const [postPda] = findProgramAddressSync([utf8.encode('post'), publicKey.toBuffer(), Uint8Array.from([lastPostId])], program.programId)
 
-    return () => {
-      if (provider && POST_EVENT_LISTENER) {
-        const program = getProgram(provider);
+        await program.methods
+          .createPost(title, content)
+          .accounts({
+            userAccount: userPda,
+            postAccount: postPda,
+            authority: publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .rpc()
 
-        program.removeEventListener(POST_EVENT_LISTENER).catch((e) => {
-          console.log("error: ", e.message);
-        });
+        setShowModal(false)
+      } catch (error) {
+        console.error(error)
+      } finally {
+        setTransactionPending(false)
       }
-    };
-  }, [provider]);
+    }
+  }
 
   return (
     <BlogContext.Provider
       value={{
         user,
         posts,
+        initialized,
+        initUser,
         createPost,
-        fetchUser,
-        updateUser,
+        showModal,
+        setShowModal,
       }}
     >
       {children}
