@@ -11,10 +11,27 @@ import { useHistory } from 'react-router-dom'
 export const Dashboard = () => {
   const history = useHistory()
   const [connecting, setConnecting] = useState(false)
-  const { connected, select } = useWallet()
-  const { user, posts, initialized, initUser, createPost, showModal, setShowModal, } = useBlog()
+  const { select } = useWallet()
   const [postTitle, setPostTitle] = useState("")
   const [postContent, setPostContent] = useState("")
+
+  // Static Data
+  const user = {
+    name: "Random Robot",
+    avatar: "https://avatarfiles.alphacoders.com/283/thumb-283778.jpg",
+  }
+  const connected = true
+  const posts = []
+
+  const createPost = () => {
+
+  }
+
+  const showModal = false
+  const setShowModal = () => {
+
+  }
+  /////////////////
 
   const onConnect = () => {
     setConnecting(true)
@@ -53,26 +70,14 @@ export const Dashboard = () => {
               <p className=" font-bold text-sm ml-2 capitalize">
                 {user?.name}
               </p>
-              {initialized ? (
-                <Button
-                  className="ml-3 mr-2"
-                  onClick={() => {
-                    setShowModal(true)
-                  }}
-                >
-                  Create Post
-                </Button>
-              ) : (
-                <Button
-                  className="ml-3 mr-2"
-                  onClick={() => {
-                    initUser()
-                  }}
-                >
-                  Initialize User
-                </Button>
-              )}
-
+              <Button
+                className="ml-3 mr-2"
+                onClick={() => {
+                  setShowModal(true)
+                }}
+              >
+                Create Post
+              </Button>
             </div>
           ) : (
             <Button
