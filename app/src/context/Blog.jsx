@@ -128,7 +128,6 @@ export const BlogProvider = ({ children }) => {
       value={{
         user,
         posts,
-        createPost,
         initialized,
         initUser,
         createPost,
